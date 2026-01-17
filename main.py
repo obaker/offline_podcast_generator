@@ -22,15 +22,19 @@ def main():
     with open(args.rss) as file:
         rssContents = file.read()
     soup = BeautifulSoup(rssContents, "lxml-xml")  # lxml installed from pip
+    feed_url = f"{args.addr}podcasts/{args.rss}"
+    soup.find("atom:link")["href"] = feed_url
+    soup.find("itunes:new-feed-url").string = feed_url
     rssItems = soup.find_all("item")
     for item in rssItems:
-        if item.title.string in mediaStems:
-            mediaId = mediaStems.index(item.title.string)
+        ep_url = item.find("acast:episodeUrl").contents[0] or None
+        if ep_url in mediaStems:
+            mediaId = mediaStems.index(ep_url)
             item.enclosure["url"] = args.addr + mediaPaths[mediaId].as_posix()
             audiofile = eyed3Load(mediaPaths[mediaId]).info
             item.enclosure["length"] = audiofile.size_bytes
             length: str = str(timedelta(seconds=round(audiofile.time_secs)))
-            item.find("itunes:duration").contents = length
+            item.find("itunes:duration").string = length
         else:
             item.decompose()
     with open(args.rss, "w", encoding='utf-8') as file:
